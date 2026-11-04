@@ -167,7 +167,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            RBtn("⏻") { key("KEY_POWER") }
+                            RBtn("Power") { key("KEY_POWER") }
                             RBtn("Source") { key("KEY_SOURCE") }
                             RBtn("Mute") { key("KEY_MUTE") }
                         }

@@ -22,7 +22,9 @@
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
+    <!-- ТВ отдаёт информацию по http://IP:8001 — без этого Android 9+ блокирует запрос -->
     <application
+        android:usesCleartextTraffic="true"
         android:label="Пульт Samsung"
         android:theme="@android:style/Theme.Material.NoActionBar">
         <activity

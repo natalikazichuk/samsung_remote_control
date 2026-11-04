@@ -56,14 +56,17 @@ class WifiTvScanner(private val context: Context) {
 
         Thread {
             val pool = Executors.newFixedThreadPool(32)
-            fun check(ip: String) {
+            // fallback: если API не ответил, но есть другие признаки Samsung TV — всё равно показываем
+            fun check(ip: String, fallback: WifiTv? = null) {
                 if (cancelled || found.containsKey(ip)) return
-                val tv = probe(ip) ?: return
+                val tv = probe(ip) ?: fallback ?: return
                 if (found.putIfAbsent(ip, tv) == null) main.post { onFound(tv) }
             }
 
             // 1. SSDP
-            ssdpCandidates().forEach { ip -> pool.execute { check(ip) } }
+            ssdpCandidates().forEach { (ip, samsung) ->
+                pool.execute { check(ip, if (samsung) WifiTv(ip, "Samsung TV", "") else null) }
+            }
 
             // 2. Перебор подсети
             val subnet = localSubnet()
@@ -72,7 +75,10 @@ class WifiTvScanner(private val context: Context) {
                 for (i in from..to) {
                     val ip = intToIp(base + i)
                     pool.execute {
-                        if (!cancelled && !found.containsKey(ip) && portOpen(ip, 8001, 400)) check(ip)
+                        if (cancelled || found.containsKey(ip)) return@execute
+                        val p8001 = portOpen(ip, 8001, 400)
+                        val p8002 = portOpen(ip, 8002, 400)
+                        if (p8001 || p8002) check(ip, if (p8002) WifiTv(ip, "Samsung TV (?)", "порт 8002") else null)
                     }
                 }
             }
@@ -82,7 +88,9 @@ class WifiTvScanner(private val context: Context) {
             val msg = when {
                 cancelled -> "Поиск остановлен"
                 found.isEmpty() && subnet == null -> "Нет Wi-Fi подключения"
-                found.isEmpty() -> "Телевизор не найден. ТВ включён и в той же сети?"
+                found.isEmpty() -> "Телевизор не найден в сети ${subnet?.let { intToIp(it.first) + "/" + it.fourth }}. " +
+                    "Проверьте, что ТВ подключён к той же Wi-Fi (Настройки ТВ → Общие → Сеть → Состояние сети) " +
+                    "и в роутере выключена изоляция клиентов."
                 else -> "Найдено ТВ: ${found.size}"
             }
             main.post { onDone(msg) }
@@ -90,8 +98,8 @@ class WifiTvScanner(private val context: Context) {
     }
 
     /** SSDP M-SEARCH, возвращает IP всех ответивших устройств Samsung/DIAL. */
-    private fun ssdpCandidates(): Set<String> {
-        val result = mutableSetOf<String>()
+    private fun ssdpCandidates(): Map<String, Boolean> {
+        val result = mutableMapOf<String, Boolean>()
         val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifi.createMulticastLock("tv-ssdp").apply { setReferenceCounted(false) }
         try {
@@ -124,8 +132,9 @@ class WifiTvScanner(private val context: Context) {
                         val p = DatagramPacket(buf, buf.size)
                         sock.receive(p)
                         val text = String(p.data, 0, p.length)
-                        if (text.contains("samsung", ignoreCase = true) || text.contains("dial", ignoreCase = true)) {
-                            p.address?.hostAddress?.let { result.add(it) }
+                        val samsung = text.contains("samsung", ignoreCase = true)
+                        if (samsung || text.contains("dial", ignoreCase = true)) {
+                            p.address?.hostAddress?.let { result[it] = (result[it] ?: false) || samsung }
                         }
                     } catch (_: SocketTimeoutException) {
                     }
@@ -162,8 +171,10 @@ class WifiTvScanner(private val context: Context) {
         false
     }
 
-    /** Возвращает (адрес сети как int, первый хост, последний хост). Ограничено /24 для скорости. */
-    private fun localSubnet(): Triple<Int, Int, Int>? {
+    private data class Subnet(val first: Int, val from: Int, val to: Int, val fourth: Int)
+
+    /** Возвращает (адрес сети, первый хост, последний хост, префикс). Не шире /24 для скорости. */
+    private fun localSubnet(): Subnet? {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val lp = cm.getLinkProperties(cm.activeNetwork) ?: return null
         val la = lp.linkAddresses.firstOrNull { it.address is Inet4Address } ?: return null
@@ -172,7 +183,7 @@ class WifiTvScanner(private val context: Context) {
         val mask = if (prefix == 0) 0 else (-1 shl (32 - prefix))
         val network = ip and mask
         val hosts = (1 shl (32 - prefix)) - 2
-        return Triple(network, 1, hosts)
+        return Subnet(network, 1, hosts, prefix)
     }
 
     private fun ipToInt(a: Inet4Address): Int =
