@@ -172,31 +172,32 @@ class MainActivity : ComponentActivity() {
                             RBtn("Mute") { key("KEY_MUTE") }
                         }
 
-                        // Навигация
-                        RBtn("▲") { key("KEY_UP") }
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            RBtn("◀") { key("KEY_LEFT") }
-                            RBtn("OK") { key("KEY_ENTER") }
-                            RBtn("▶") { key("KEY_RIGHT") }
+                        // Громкость слева, навигация по центру, каналы справа
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Rocker("VOL", up = { key("KEY_VOLUP") }, down = { key("KEY_VOLDOWN") })
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                PadBtn("▲") { key("KEY_UP") }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    PadBtn("◀") { key("KEY_LEFT") }
+                                    PadBtn("OK") { key("KEY_ENTER") }
+                                    PadBtn("▶") { key("KEY_RIGHT") }
+                                }
+                                PadBtn("▼") { key("KEY_DOWN") }
+                            }
+                            Rocker("CH", up = { key("KEY_CHUP") }, down = { key("KEY_CHDOWN") })
                         }
-                        RBtn("▼") { key("KEY_DOWN") }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             RBtn("Back") { key("KEY_RETURN") }
                             RBtn("Home") { key("KEY_HOME") }
                             RBtn("Menu") { key("KEY_MENU") }
-                        }
-
-                        // Громкость и каналы
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RBtn("VOL +") { key("KEY_VOLUP") }
-                                RBtn("VOL −") { key("KEY_VOLDOWN") }
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                RBtn("CH +") { key("KEY_CHUP") }
-                                RBtn("CH −") { key("KEY_CHDOWN") }
-                            }
                         }
 
                         // Цифры
@@ -210,6 +211,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        remote.ensureConnected()
     }
 
     override fun onDestroy() {
@@ -233,6 +239,32 @@ fun DeviceRow(title: String, subtitle: String, onClick: () -> Unit) {
         Column(Modifier.padding(12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+/** Кнопка крестовины: фиксированный размер, символ по центру. */
+@Composable
+fun PadBtn(label: String, onClick: () -> Unit) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = Modifier.size(64.dp, 56.dp),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/** Вертикальная качелька «+ / −» как на обычном пульте (громкость, каналы). */
+@Composable
+fun Rocker(title: String, up: () -> Unit, down: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FilledTonalButton(onClick = up, modifier = Modifier.size(64.dp, 72.dp), contentPadding = PaddingValues(0.dp)) {
+            Text("+", style = MaterialTheme.typography.headlineSmall)
+        }
+        Text(title, style = MaterialTheme.typography.labelLarge)
+        FilledTonalButton(onClick = down, modifier = Modifier.size(64.dp, 72.dp), contentPadding = PaddingValues(0.dp)) {
+            Text("−", style = MaterialTheme.typography.headlineSmall)
         }
     }
 }
