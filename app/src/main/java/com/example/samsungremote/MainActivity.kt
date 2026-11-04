@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -116,6 +117,13 @@ class MainActivity : ComponentActivity() {
                         remote.sendKey(k)
                     }
 
+                    var tab by rememberSaveable { mutableStateOf(0) }
+                    Column(Modifier.fillMaxSize()) {
+                    TabRow(selectedTabIndex = tab) {
+                        Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Телевизор") })
+                        Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Стиральная машина") })
+                    }
+                    if (tab == 1) WasherScreen() else
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -207,6 +215,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         RBtn("0") { key("KEY_0") }
+                    }
                     }
                 }
             }
