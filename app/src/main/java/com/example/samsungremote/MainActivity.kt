@@ -121,9 +121,10 @@ class MainActivity : ComponentActivity() {
                     Column(Modifier.fillMaxSize()) {
                     TabRow(selectedTabIndex = tab) {
                         Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Телевизор") })
-                        Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Стиральная машина") })
+                        Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Стиралка") })
+                        Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("Колонка") })
                     }
-                    if (tab == 1) WasherScreen() else
+                    if (tab == 1) WasherScreen() else if (tab == 2) SpeakerScreen() else
                     Column(
                         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
